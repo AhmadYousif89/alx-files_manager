@@ -11,7 +11,7 @@ import mongoDB from '../utils/db';
 const FOLDER_RELATIVE_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 
 // POST /files
-// Create a new file in DB and in disk
+// Create a new file in DB and in a local disk folder
 export const postUpload = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
@@ -82,7 +82,7 @@ export const postUpload = asyncWrapper(async (req, res) => {
       name,
       type,
       isPublic,
-      parentId,
+      parentId: parentId !== '0' ? ObjectId(parentId) : parentId,
       localPath: filePath,
     };
     const file = await mongoDB.files.insertOne(fileData);
@@ -96,12 +96,16 @@ export const postUpload = asyncWrapper(async (req, res) => {
 });
 
 // GET /files? (optional query parameters: parentId, page, limit)
+// Return the list of files based on the query parameters
 export const getIndex = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { parentId = 0, page = 0, limit = 20 } = req.query;
   const skip = +page * +limit;
-  const filter = { userId, ...(parentId && parentId !== '0' && { parentId }) };
+  const filter = {
+    userId,
+    ...(parentId && parentId !== '0' && { parentId: ObjectId(parentId) }),
+  };
 
   const files = await mongoDB.files
     .aggregate([
@@ -126,6 +130,7 @@ export const getIndex = asyncWrapper(async (req, res) => {
 });
 
 // GET /files/:id
+// Return the file metadata based on the file id
 export const getShow = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
@@ -140,6 +145,7 @@ export const getShow = asyncWrapper(async (req, res) => {
 });
 
 // PUT /files/:id/publish
+// Set the file as public based on the file id
 export const putPublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
@@ -160,6 +166,7 @@ export const putPublish = asyncWrapper(async (req, res) => {
 });
 
 // PUT /files/:id/unpublish
+// Set the file as private based on the file id
 export const putUnpublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
@@ -178,3 +185,7 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
   const { _id, localPath, ...rest } = updatedFile.value;
   return res.status(200).json({ id, ...rest });
 });
+
+// GET /files/:id/data
+// Return the file content based on the file id
+export const getFile = asyncWrapper(async (req, res) => {});
