@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { getConnect, getDisconnect } from '../controllers/AuthController';
-import { getStatus, getStats } from '../controllers/AppController';
 import { getMe, postNew } from '../controllers/UsersController';
-import { postUpload } from '../controllers/FilesController';
+import { getStatus, getStats } from '../controllers/AppController';
+import { getConnect, getDisconnect } from '../controllers/AuthController';
+import { getIndex, getShow, postUpload } from '../controllers/FilesController';
 import { handleXToken, authenticateUser } from '../middlewares/auth';
 
 const router = Router();
@@ -21,5 +21,7 @@ router.post('/users', postNew);
 router.get('/users/me', authenticateUser, getMe);
 // API Files Routes
 router.post('/files', authenticateUser, postUpload);
+router.get('/files', authenticateUser, getIndex);
+router.get('/files/:id', authenticateUser, getShow);
 
 export default router;
