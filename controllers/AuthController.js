@@ -1,4 +1,4 @@
-import { v4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 import { checkHashedPassword } from '../utils/encrypt';
 import asyncWrapper from '../middlewares/async_wrapper';
@@ -25,7 +25,7 @@ export const getConnect = asyncWrapper(async (req, res) => {
     throw new ApiError(401, 'Unauthorized');
   }
 
-  const token = v4();
+  const token = uuidv4();
   const key = `auth_${token}`;
 
   await redisClient.set(key, user._id.toString(), EXPIRY_DATE);

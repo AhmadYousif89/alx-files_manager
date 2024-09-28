@@ -1,27 +1,17 @@
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { ObjectId } from 'mongodb';
 
 import asyncWrapper from '../middlewares/async_wrapper';
 import { ApiError } from '../middlewares/errors';
-import redisClient from '../utils/redis';
 import mongoDB from '../utils/db';
 
 const FOLDER_RELATIVE_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 // POST /files
 // Create a new file in DB and in disk
 export const postUpload = asyncWrapper(async (req, res) => {
-  const key = `auth_${req.token}`;
-  const userId = await redisClient.get(key);
-  if (!userId) {
-    throw new ApiError(401, 'Unauthorized');
-  }
-
-  const user = await mongoDB.users.findOne({ _id: ObjectId(userId) });
-  if (!user) {
-    throw new ApiError(401, 'Unauthorized');
-  }
+  const user = req.user;
+  const userId = user._id;
   // Validate the request body
   // type: either 'folder | file | image'
   // parentId: the parent folder id (0 if it's the root folder)
@@ -43,8 +33,8 @@ export const postUpload = asyncWrapper(async (req, res) => {
     throw new ApiError(400, 'Missing data');
   }
 
-  const parent = await mongoDB.files.findOne({ userId, parentId });
   if (parentId !== 0) {
+    const parent = await mongoDB.files.findOne({ parentId });
     if (!parent) {
       throw new ApiError(400, 'Parent not found');
     }
@@ -53,7 +43,7 @@ export const postUpload = asyncWrapper(async (req, res) => {
     }
   }
 
-  // Create the file in the DB
+  // Handle folder creation in DB
   if (type === 'folder') {
     const file = await mongoDB.files.insertOne({
       userId,
@@ -67,30 +57,33 @@ export const postUpload = asyncWrapper(async (req, res) => {
       .json({ id: file.insertedId, userId, name, type, isPublic, parentId });
   }
 
-  // Create the file in the disk
-  fs.mkdirSync(FOLDER_RELATIVE_PATH, { recursive: true });
-  const base64Data = Buffer.from(data, 'base64');
-  const fileName = uuidv4();
-  const filePath = path.join(FOLDER_RELATIVE_PATH, fileName);
-  fs.writeFileSync(filePath, base64Data);
+  // Handle file/image creation on disk
+  try {
+    if (!fs.existsSync(FOLDER_RELATIVE_PATH)) {
+      fs.mkdirSync(FOLDER_RELATIVE_PATH, { recursive: true });
+    }
 
-  const file = await mongoDB.files.insertOne({
-    userId,
-    name,
-    type,
-    isPublic,
-    parentId,
-    localPath: filePath,
-  });
+    const base64Data = Buffer.from(data, 'base64');
+    const fileName = uuidv4();
+    const filePath = path.normalize(path.join(FOLDER_RELATIVE_PATH, fileName));
 
-  return res.status(201).json({
-    id: file.insertedId,
-    userId,
-    name,
-    type,
-    isPublic,
-    parentId,
-  });
+    fs.writeFileSync(filePath, base64Data);
+
+    const fileData = {
+      userId,
+      name,
+      type,
+      isPublic,
+      parentId,
+      localPath: filePath,
+    };
+    const file = await mongoDB.files.insertOne(fileData);
+
+    return res.status(201).json({ id: file.insertedId, ...fileData });
+  } catch (err) {
+    console.error(err);
+    throw new ApiError(500, 'File creation failed');
+  }
 });
 
 // GET /files
