@@ -82,7 +82,7 @@ export const postUpload = asyncWrapper(async (req, res) => {
       name,
       type,
       isPublic,
-      parentId: parentId !== '0' ? ObjectId(parentId) : parentId,
+      parentId,
       localPath: filePath,
     };
     const file = await mongoDB.files.insertOne(fileData);
