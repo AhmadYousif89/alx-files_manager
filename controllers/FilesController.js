@@ -150,19 +150,27 @@ export const putPublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const file = await mongoDB.files.findOne({ _id: ObjectId(id), userId });
+  const filter = { _id: ObjectId(id), userId: ObjectId(userId) };
+  const file = await mongoDB.files.findOne(filter);
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
 
   const updatedFile = await mongoDB.files.findOneAndUpdate(
-    { _id: ObjectId(id), userId },
+    filter,
     { $set: { isPublic: true } },
     { returnDocument: 'after' },
   );
 
-  const { _id, localPath, ...rest } = updatedFile.value;
-  return res.status(200).json({ id, ...rest });
+  const { name, type, isPublic, parentId } = updatedFile.value;
+  return res.status(200).json({
+    id,
+    userId,
+    name,
+    type,
+    isPublic,
+    parentId,
+  });
 });
 
 // PUT /files/:id/unpublish
@@ -171,19 +179,27 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const file = await mongoDB.files.findOne({ _id: ObjectId(id), userId });
+  const filter = { _id: ObjectId(id), userId: ObjectId(userId) };
+  const file = await mongoDB.files.findOne(filter);
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
 
   const updatedFile = await mongoDB.files.findOneAndUpdate(
-    { _id: ObjectId(id), userId },
+    filter,
     { $set: { isPublic: false } },
     { returnDocument: 'after' },
   );
 
-  const { _id, localPath, ...rest } = updatedFile.value;
-  return res.status(200).json({ id, ...rest });
+  const { name, type, isPublic, parentId } = updatedFile.value;
+  return res.status(200).json({
+    id,
+    userId,
+    name,
+    type,
+    isPublic,
+    parentId,
+  });
 });
 
 // GET /files/:id/data
