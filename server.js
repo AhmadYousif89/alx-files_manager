@@ -8,9 +8,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 app.use(appRoutes);
-app.use((req, res) => {
-  res.status(404).send({ error: 'Not found' });
-});
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
