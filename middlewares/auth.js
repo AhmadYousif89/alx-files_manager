@@ -11,7 +11,7 @@ export const authenticateUser = asyncWrapper(async (req, res, next) => {
 export const handleXToken = asyncWrapper(async (req, res, next) => {
   const token = req.headers['x-token'];
   if (!token) {
-    throw new ApiError(401, 'Unauthorized: Missing x-token');
+    throw new ApiError(401, 'Unauthorized');
   }
   req.token = token;
   next();

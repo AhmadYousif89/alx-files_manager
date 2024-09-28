@@ -26,6 +26,6 @@ export const postNew = asyncWrapper(async (req, res) => {
 
 // GET /users/me
 export const getMe = asyncWrapper(async (req, res) => {
-  const user = req.user;
+  const { user } = req;
   res.status(200).json({ id: user._id, email: user.email });
 });

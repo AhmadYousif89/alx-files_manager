@@ -13,7 +13,7 @@ import mongoDB from './db';
 const getUserFromHeader = async (req) => {
   const token = req.headers['x-token'];
   if (!token) {
-    throw new ApiError(401, 'Unauthorized: Missing x-token');
+    throw new ApiError(401, 'Unauthorized');
   }
 
   const key = `auth_${token}`;
