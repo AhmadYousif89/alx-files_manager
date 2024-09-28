@@ -101,7 +101,7 @@ export const getIndex = asyncWrapper(async (req, res) => {
   const userId = user._id;
   const { parentId = 0, page = 1, limit = 20 } = req.query;
   //  If the parentId is not linked to any user folder, returns an empty list
-  const parent = await mongoDB.files.findOne({ _id: ObjectId(parentId), userId });
+  const parent = await mongoDB.files.findOne({ parentId, userId });
   if (!parent) {
     return res.status(200).json([]);
   }
@@ -130,12 +130,13 @@ export const getShow = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const file = await mongoDB.files.findOne({ parentId: id, userId });
+  const file = await mongoDB.files.findOne({ _id: ObjectId(id), userId });
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
 
-  return res.status(200).json({ id: file._id, ...file, _id: undefined });
+  const { _id, localPath, ...rest } = file;
+  return res.status(200).json({ id, ...rest });
 });
 
 // PUT /files/:id/publish
