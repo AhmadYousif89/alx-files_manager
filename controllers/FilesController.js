@@ -1,12 +1,15 @@
+/* eslint-disable object-curly-newline */
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { ObjectId } from 'mongodb';
 
 import asyncWrapper from '../middlewares/async_wrapper';
 import { ApiError } from '../middlewares/errors';
 import mongoDB from '../utils/db';
 
 const FOLDER_RELATIVE_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
+
 // POST /files
 // Create a new file in DB and in disk
 export const postUpload = asyncWrapper(async (req, res) => {
@@ -17,7 +20,6 @@ export const postUpload = asyncWrapper(async (req, res) => {
   // parentId: the parent folder id (0 if it's the root folder)
   // isPublic: a boolean to set the file/folder as public default is false
   // data: the file data (only for type: file | image)
-  // eslint-disable-next-line object-curly-newline
   const { name, type, data, parentId = 0, isPublic = false } = req.body;
 
   const acceptedTypes = ['folder', 'file', 'image'];
@@ -35,7 +37,7 @@ export const postUpload = asyncWrapper(async (req, res) => {
   }
 
   if (parentId !== 0) {
-    const parent = await mongoDB.files.findOne({ parentId });
+    const parent = await mongoDB.files.findOne({ _id: ObjectId(parentId) });
     if (!parent) {
       throw new ApiError(400, 'Parent not found');
     }
@@ -84,8 +86,9 @@ export const postUpload = asyncWrapper(async (req, res) => {
       localPath: filePath,
     };
     const file = await mongoDB.files.insertOne(fileData);
-
-    return res.status(201).json({ id: file.insertedId, ...fileData });
+    return res
+      .status(201)
+      .json({ id: file.insertedId, userId, name, type, isPublic, parentId });
   } catch (err) {
     console.error(err);
     throw new ApiError(500, 'File creation failed');
@@ -98,9 +101,9 @@ export const getIndex = asyncWrapper(async (req, res) => {
   const userId = user._id;
   const { parentId = 0, page = 1, limit = 20 } = req.query;
   //  If the parentId is not linked to any user folder, returns an empty list
-  const parent = await mongoDB.files.findOne({ parentId, userId });
+  const parent = await mongoDB.files.findOne({ _id: ObjectId(parentId), userId });
   if (!parent) {
-    return res.status(200).json({ data: [] });
+    return res.status(200).json([]);
   }
 
   // Handle pagination:
@@ -114,7 +117,12 @@ export const getIndex = asyncWrapper(async (req, res) => {
     .limit(limit)
     .toArray();
 
-  return res.status(200).json(files);
+  const filesWithIdConverted = files.map((file) => {
+    const { _id, localPath, ...rest } = file;
+    return { id: _id.toString(), ...rest };
+  });
+
+  return res.status(200).json(filesWithIdConverted);
 });
 
 // GET /files/:id
@@ -127,5 +135,11 @@ export const getShow = asyncWrapper(async (req, res) => {
     throw new ApiError(404, 'Not found');
   }
 
-  return res.status(200).json(file);
+  return res.status(200).json({ id: file._id, ...file, _id: undefined });
 });
+
+// PUT /files/:id/publish
+export const putPublish = asyncWrapper(async (req, res) => {});
+
+// PUT /files/:id/unpublish
+export const putUnpublish = asyncWrapper(async (req, res) => {});
