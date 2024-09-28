@@ -99,30 +99,30 @@ export const postUpload = asyncWrapper(async (req, res) => {
 export const getIndex = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
-  const { parentId = 0, page = 1, limit = 20 } = req.query;
-  //  If the parentId is not linked to any user folder, returns an empty list
-  const parent = await mongoDB.files.findOne({ parentId, userId });
-  if (!parent) {
-    return res.status(200).json([]);
-  }
+  const { parentId = 0, page = 0, limit = 20 } = req.query;
+  const skip = +page * +limit;
+  const filter = { userId, ...(parentId && parentId !== '0' && { parentId }) };
 
-  // Handle pagination:
-  // Each page should be 20 items max
-  // page query parameter starts at 0 for the first page.
-  // If equals to 1, it means it’s the second page (form the 20th to the 40th), etc…
-  const skip = (page - 1) * limit;
   const files = await mongoDB.files
-    .find({ parentId, userId })
-    .skip(skip)
-    .limit(limit)
+    .aggregate([
+      { $match: filter },
+      { $skip: skip },
+      { $limit: +limit },
+      {
+        $project: {
+          _id: 0,
+          id: '$_id',
+          userId: '$userId',
+          name: '$name',
+          type: '$type',
+          isPublic: '$isPublic',
+          parentId: '$parentId',
+        },
+      },
+    ])
     .toArray();
 
-  const filesWithIdConverted = files.map((file) => {
-    const { _id, localPath, ...rest } = file;
-    return { id: _id.toString(), ...rest };
-  });
-
-  return res.status(200).json(filesWithIdConverted);
+  return res.status(200).json(files);
 });
 
 // GET /files/:id
@@ -140,7 +140,41 @@ export const getShow = asyncWrapper(async (req, res) => {
 });
 
 // PUT /files/:id/publish
-export const putPublish = asyncWrapper(async (req, res) => {});
+export const putPublish = asyncWrapper(async (req, res) => {
+  const { user } = req;
+  const userId = user._id;
+  const { id } = req.params;
+  const file = await mongoDB.files.findOne({ _id: ObjectId(id), userId });
+  if (!file) {
+    throw new ApiError(404, 'Not found');
+  }
+
+  const updatedFile = await mongoDB.files.findOneAndUpdate(
+    { _id: ObjectId(id), userId },
+    { $set: { isPublic: true } },
+    { returnDocument: 'after' },
+  );
+
+  const { _id, localPath, ...rest } = updatedFile.value;
+  return res.status(200).json({ id, ...rest });
+});
 
 // PUT /files/:id/unpublish
-export const putUnpublish = asyncWrapper(async (req, res) => {});
+export const putUnpublish = asyncWrapper(async (req, res) => {
+  const { user } = req;
+  const userId = user._id;
+  const { id } = req.params;
+  const file = await mongoDB.files.findOne({ _id: ObjectId(id), userId });
+  if (!file) {
+    throw new ApiError(404, 'Not found');
+  }
+
+  const updatedFile = await mongoDB.files.findOneAndUpdate(
+    { _id: ObjectId(id), userId },
+    { $set: { isPublic: false } },
+    { returnDocument: 'after' },
+  );
+
+  const { _id, localPath, ...rest } = updatedFile.value;
+  return res.status(200).json({ id, ...rest });
+});
