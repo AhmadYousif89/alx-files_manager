@@ -18,7 +18,7 @@ export const postNew = asyncWrapper(async (req, res) => {
 
   const existingUser = await mongoDB.users.findOne({ email });
   if (existingUser) {
-    throw new ApiError(400, 'Already exists');
+    throw new ApiError(400, 'Already exist');
   }
 
   const hashedPassword = hashPassword(password);
