@@ -12,7 +12,7 @@ import getUserFromHeader from '../utils/auth';
 import mongoDB from '../utils/db';
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
-
+const NULL_ID = Buffer.alloc(24, '0').toString('utf-8');
 const fileQueue = new Queue('fileQueue');
 
 // POST /files
@@ -149,7 +149,7 @@ export const getShow = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const file = await mongoDB.files.findOne({ _id: ObjectId(id), userId });
+  const file = await mongoDB.files.findOne(filter);
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
@@ -164,16 +164,17 @@ export const putPublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const file = await mongoDB.files.findOne({
-    _id: ObjectId(id),
-    userId: ObjectId(userId),
-  });
+  const filter = {
+    _id: id instanceof ObjectId ? id : NULL_ID,
+    userId: userId instanceof ObjectId ? userId : NULL_ID,
+  };
+  const file = await mongoDB.files.findOne(filter);
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
 
   const updatedFile = await mongoDB.files.findOneAndUpdate(
-    { _id: ObjectId(id), userId },
+    filter,
     { $set: { isPublic: true } },
     { returnDocument: 'after' },
   );
@@ -195,16 +196,17 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const file = await mongoDB.files.findOne({
-    _id: ObjectId(id),
-    userId: ObjectId(userId),
-  });
+  const filter = {
+    _id: id instanceof ObjectId ? id : NULL_ID,
+    userId: userId instanceof ObjectId ? userId : NULL_ID,
+  };
+  const file = await mongoDB.files.findOne(filter);
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
 
   const updatedFile = await mongoDB.files.findOneAndUpdate(
-    { _id: ObjectId(id), userId },
+    filter,
     { $set: { isPublic: false } },
     { returnDocument: 'after' },
   );
