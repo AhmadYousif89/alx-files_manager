@@ -149,6 +149,7 @@ export const getShow = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
+  const filter = { _id: ObjectId(id), userId: ObjectId(userId) };
   const file = await mongoDB.files.findOne(filter);
   if (!file) {
     throw new ApiError(404, 'Not found');
@@ -165,8 +166,8 @@ export const putPublish = asyncWrapper(async (req, res) => {
   const userId = user._id;
   const { id } = req.params;
   const filter = {
-    _id: id instanceof ObjectId ? id : NULL_ID,
-    userId: userId instanceof ObjectId ? userId : NULL_ID,
+    _id: id instanceof ObjectId ? ObjectId(id) : NULL_ID,
+    userId: userId instanceof ObjectId ? ObjectId(userId) : NULL_ID,
   };
   const file = await mongoDB.files.findOne(filter);
   if (!file) {
@@ -197,8 +198,8 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
   const userId = user._id;
   const { id } = req.params;
   const filter = {
-    _id: id instanceof ObjectId ? id : NULL_ID,
-    userId: userId instanceof ObjectId ? userId : NULL_ID,
+    _id: id instanceof ObjectId ? ObjectId(id) : NULL_ID,
+    userId: userId instanceof ObjectId ? ObjectId(userId) : NULL_ID,
   };
   const file = await mongoDB.files.findOne(filter);
   if (!file) {
