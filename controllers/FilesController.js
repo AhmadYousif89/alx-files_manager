@@ -1,10 +1,11 @@
 /* eslint-disable object-curly-newline */
+import { promises as fsPromises } from 'fs';
 import { contentType } from 'mime-types';
 import { v4 as uuidv4 } from 'uuid';
-import { promises as fs } from 'fs';
 import { ObjectId } from 'mongodb';
 import Queue from 'bull';
 import path from 'path';
+import fs from 'fs';
 
 import asyncWrapper from '../middlewares/async_wrapper';
 import { ApiError } from '../middlewares/errors';
@@ -53,7 +54,7 @@ export const postUpload = asyncWrapper(async (req, res) => {
   // Handle folder creation in DB
   if (type === 'folder') {
     const file = await mongoDB.files.insertOne({
-      userId: ObjectId(userId),
+      userId,
       name,
       type,
       parentId: parentId === '0' ? '0' : ObjectId(parentId),
@@ -71,22 +72,18 @@ export const postUpload = asyncWrapper(async (req, res) => {
 
   // Handle file/image creation on disk
   try {
-    const isFolderExist = await fs
-      .access(FOLDER_PATH)
-      .then(() => true)
-      .catch(() => false);
-    if (!isFolderExist) {
-      await fs.mkdir(FOLDER_PATH, { recursive: true });
+    if (!fs.existsSync(FOLDER_PATH)) {
+      await fsPromises.mkdir(FOLDER_PATH, { recursive: true });
     }
 
     const base64Data = Buffer.from(data, 'base64');
     const fileName = uuidv4();
     const filePath = path.join(FOLDER_PATH, fileName);
 
-    await fs.writeFile(filePath, base64Data);
+    await fsPromises.writeFile(filePath, base64Data);
 
     const fileData = {
-      userId: ObjectId(userId),
+      userId,
       name,
       type,
       isPublic,
@@ -138,11 +135,7 @@ export const getFile = asyncWrapper(async (req, res) => {
     const validSizes = ['500', '250', '100'];
     if (validSizes.includes(size)) {
       const resizedPath = `${localPath}_${size}`;
-      const isResizedPathExist = await fs
-        .access(resizedPath)
-        .then(() => true)
-        .catch(() => false);
-      if (isResizedPathExist) {
+      if (fs.existsSync(resizedPath)) {
         localPath = resizedPath;
       } else {
         throw new ApiError(404, 'Not found');
@@ -150,11 +143,7 @@ export const getFile = asyncWrapper(async (req, res) => {
     }
   }
 
-  const isLocalPathExist = await fs
-    .access(localPath)
-    .then(() => true)
-    .catch(() => false);
-  if (!isLocalPathExist) {
+  if (!fs.existsSync(localPath)) {
     throw new ApiError(404, 'Not found');
   }
 
