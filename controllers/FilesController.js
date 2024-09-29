@@ -1,15 +1,19 @@
 /* eslint-disable object-curly-newline */
-import fs from 'fs';
-import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
 import mime from 'mime-types';
+import Queue from 'bull';
+import path from 'path';
+import fs from 'fs';
 
 import asyncWrapper from '../middlewares/async_wrapper';
 import { ApiError } from '../middlewares/errors';
 import mongoDB from '../utils/db';
+import getUserFromHeader from '../utils/auth';
 
-const FOLDER_RELATIVE_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
+const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
+
+const fileQueue = new Queue('fileQueue');
 
 // POST /files
 // Create a new file in DB and in a local disk folder
@@ -37,7 +41,7 @@ export const postUpload = asyncWrapper(async (req, res) => {
     throw new ApiError(400, 'Missing data');
   }
 
-  if (parentId !== 0) {
+  if (parentId && parentId !== '0') {
     const parent = await mongoDB.files.findOne({ _id: ObjectId(parentId) });
     if (!parent) {
       throw new ApiError(400, 'Parent not found');
@@ -68,13 +72,13 @@ export const postUpload = asyncWrapper(async (req, res) => {
 
   // Handle file/image creation on disk
   try {
-    if (!fs.existsSync(FOLDER_RELATIVE_PATH)) {
-      fs.mkdirSync(FOLDER_RELATIVE_PATH, { recursive: true });
+    if (!fs.existsSync(FOLDER_PATH)) {
+      fs.mkdirSync(FOLDER_PATH, { recursive: true });
     }
 
     const base64Data = Buffer.from(data, 'base64');
     const fileName = uuidv4();
-    const filePath = path.normalize(path.join(FOLDER_RELATIVE_PATH, fileName));
+    const filePath = path.normalize(path.join(FOLDER_PATH, fileName));
 
     fs.writeFileSync(filePath, base64Data);
 
@@ -87,6 +91,15 @@ export const postUpload = asyncWrapper(async (req, res) => {
       localPath: filePath,
     };
     const file = await mongoDB.files.insertOne(fileData);
+
+    // Add job to fileQueue for image thumbnail generation
+    if (type === 'image') {
+      await fileQueue.add({
+        userId: userId.toString(),
+        fileId: file.insertedId.toString(),
+      });
+    }
+
     return res
       .status(201)
       .json({ id: file.insertedId, userId, name, type, isPublic, parentId });
@@ -206,12 +219,22 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
 // GET /files/:id/data
 // Return the file content based on the file id
 export const getFile = asyncWrapper(async (req, res) => {
-  const { user } = req;
+  const token = req.headers['x-token'];
+  if (!token) {
+    throw new ApiError(404, 'Not found');
+  }
+
+  const user = await getUserFromHeader(req);
   const userId = user._id;
   const { id } = req.params;
+  const { size } = req.query;
   const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
 
-  if (!file || (!file.isPublic && file.userId.toString() !== userId.toString())) {
+  if (!file) {
+    throw new ApiError(404, 'Not found');
+  }
+
+  if (!file.isPublic && (!userId || file.userId.toString() !== userId)) {
     throw new ApiError(404, 'Not found');
   }
 
@@ -219,12 +242,26 @@ export const getFile = asyncWrapper(async (req, res) => {
     throw new ApiError(400, "A folder doesn't have content");
   }
 
-  const { localPath } = file;
+  let { localPath } = file;
+
+  if (size) {
+    const validSizes = ['500', '250', '100'];
+    if (validSizes.includes(size)) {
+      const resizedPath = `${localPath}_${size}`;
+      if (fs.existsSync(resizedPath)) {
+        localPath = resizedPath;
+      } else {
+        throw new ApiError(404, 'Not found');
+      }
+    }
+  }
 
   if (!fs.existsSync(localPath)) {
     throw new ApiError(404, 'Not found');
   }
   const mimeType = mime.lookup(file.name) || 'application/octet-stream';
+  const fileContent = fs.readFileSync(file.localPath);
+
   res.setHeader('Content-Type', mimeType);
-  return res.status(200).sendFile(localPath);
+  return res.status(200).sendFile(fileContent);
 });

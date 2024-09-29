@@ -32,7 +32,7 @@ router.get('/files', authenticateUser, getIndex);
 router.get('/files/:id', authenticateUser, getShow);
 router.put('/files/:id/publish', authenticateUser, putPublish);
 router.put('/files/:id/unpublish', authenticateUser, putUnpublish);
-router.get('/files/:id/data', authenticateUser, getFile);
+router.get('/files/:id/data', getFile);
 // Handle non-existing routes
 router.use((_req, res) => {
   res.status(404).send({ error: 'Resource not found!' });
