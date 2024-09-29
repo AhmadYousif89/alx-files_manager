@@ -172,13 +172,13 @@ export const putPublish = asyncWrapper(async (req, res) => {
 
   await mongoDB.files.updateOne({ _id: ObjectId(id) }, { $set: { isPublic: true } });
 
-  const { name, type, isPublic, parentId } = file;
+  const { name, type, parentId } = file;
   return res.status(200).json({
     id,
     userId,
     name,
     type,
-    isPublic,
+    isPublic: true,
     parentId,
   });
 });
@@ -197,13 +197,13 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
 
   await mongoDB.files.updateOne({ _id: ObjectId(id) }, { $set: { isPublic: false } });
 
-  const { name, type, isPublic, parentId } = file;
+  const { name, type, parentId } = file;
   return res.status(200).json({
     id,
     userId,
     name,
     type,
-    isPublic,
+    isPublic: false,
     parentId,
   });
 });
