@@ -1,7 +1,7 @@
 /* eslint-disable object-curly-newline */
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
-import mime from 'mime-types';
+import { contentType } from 'mime-types';
 import Queue from 'bull';
 import path from 'path';
 import fs from 'fs';
@@ -225,15 +225,14 @@ export const getFile = asyncWrapper(async (req, res) => {
   const { size } = req.query;
   const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
 
-  if (file && file.type === 'folder') {
-    throw new ApiError(400, "A folder doesn't have content");
-  }
-
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
+  if (file.type === 'folder') {
+    throw new ApiError(400, "A folder doesn't have content");
+  }
 
-  if (!file.isPublic && file.userId.toString() !== userId.toString()) {
+  if (!file.isPublic && (!userId || file.userId.toString() !== userId.toString())) {
     throw new ApiError(404, 'Not found');
   }
 
@@ -254,9 +253,8 @@ export const getFile = asyncWrapper(async (req, res) => {
   if (!fs.existsSync(localPath)) {
     throw new ApiError(404, 'Not found');
   }
-  const mimeType = mime.lookup(file.name) || 'application/octet-stream';
-  const fileContent = fs.readFileSync(localPath);
+  const mimeType = contentType(file.name) || 'application/octet-stream';
 
   res.setHeader('Content-Type', mimeType);
-  return res.status(200).send(fileContent);
+  return res.status(200).sendFile(localPath);
 });
