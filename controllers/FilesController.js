@@ -164,14 +164,13 @@ export const putPublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const filter = { _id: ObjectId(id), userId: ObjectId(userId) };
-  const file = await mongoDB.files.findOne(filter);
+  const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
 
   const updatedFile = await mongoDB.files.findOneAndUpdate(
-    filter,
+    { _id: ObjectId(id), userId: ObjectId(userId) },
     { $set: { isPublic: true } },
     { returnDocument: 'after' },
   );
@@ -193,14 +192,13 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const filter = { _id: ObjectId(id), userId: ObjectId(userId) };
-  const file = await mongoDB.files.findOne(filter);
+  const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
 
   const updatedFile = await mongoDB.files.findOneAndUpdate(
-    filter,
+    { _id: ObjectId(id), userId: ObjectId(userId) },
     { $set: { isPublic: false } },
     { returnDocument: 'after' },
   );
@@ -253,8 +251,8 @@ export const getFile = asyncWrapper(async (req, res) => {
   if (!fs.existsSync(localPath)) {
     throw new ApiError(404, 'Not found');
   }
-  const mimeType = contentType(file.name) || 'application/octet-stream';
 
+  const mimeType = contentType(file.name) || 'application/octet-stream';
   res.setHeader('Content-Type', mimeType);
   return res.status(200).sendFile(localPath);
 });
