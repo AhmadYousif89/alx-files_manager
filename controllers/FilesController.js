@@ -170,13 +170,9 @@ export const putPublish = asyncWrapper(async (req, res) => {
     throw new ApiError(404, 'Not found');
   }
 
-  const updatedFile = await mongoDB.files.findOneAndUpdate(
-    filter,
-    { $set: { isPublic: true } },
-    { returnDocument: 'after' },
-  );
+  await mongoDB.files.updateOne({ _id: ObjectId(id) }, { $set: { isPublic: true } });
 
-  const { name, type, isPublic, parentId } = updatedFile.value;
+  const { name, type, isPublic, parentId } = file;
   return res.status(200).json({
     id,
     userId,
@@ -199,13 +195,9 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
     throw new ApiError(404, 'Not found');
   }
 
-  const updatedFile = await mongoDB.files.findOneAndUpdate(
-    filter,
-    { $set: { isPublic: false } },
-    { returnDocument: 'after' },
-  );
+  await mongoDB.files.updateOne({ _id: ObjectId(id) }, { $set: { isPublic: false } });
 
-  const { name, type, isPublic, parentId } = updatedFile.value;
+  const { name, type, isPublic, parentId } = file;
   return res.status(200).json({
     id,
     userId,
