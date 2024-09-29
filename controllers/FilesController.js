@@ -1,5 +1,4 @@
 /* eslint-disable object-curly-newline */
-import { promises as fsPromises } from 'fs';
 import { contentType } from 'mime-types';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
@@ -57,7 +56,7 @@ export const postUpload = asyncWrapper(async (req, res) => {
       userId,
       name,
       type,
-      parentId: parentId === '0' ? '0' : ObjectId(parentId),
+      parentId,
       isPublic,
     });
     return res.status(201).json({
@@ -73,21 +72,21 @@ export const postUpload = asyncWrapper(async (req, res) => {
   // Handle file/image creation on disk
   try {
     if (!fs.existsSync(FOLDER_PATH)) {
-      await fsPromises.mkdir(FOLDER_PATH, { recursive: true });
+      await fs.promises.mkdir(FOLDER_PATH, { recursive: true });
     }
 
     const base64Data = Buffer.from(data, 'base64');
     const fileName = uuidv4();
     const filePath = path.join(FOLDER_PATH, fileName);
 
-    await fsPromises.writeFile(filePath, base64Data);
+    await fs.promises.writeFile(filePath, base64Data);
 
     const fileData = {
       userId,
       name,
       type,
       isPublic,
-      parentId: parentId === '0' ? '0' : ObjectId(parentId),
+      parentId,
       localPath: filePath,
     };
     const file = await mongoDB.files.insertOne(fileData);
