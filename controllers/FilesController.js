@@ -12,7 +12,6 @@ import getUserFromHeader from '../utils/auth';
 import mongoDB from '../utils/db';
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
-const NULL_ID = Buffer.alloc(24, '0').toString('utf-8');
 const fileQueue = new Queue('fileQueue');
 
 // POST /files
@@ -165,10 +164,7 @@ export const putPublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const filter = {
-    _id: id instanceof ObjectId ? ObjectId(id) : NULL_ID,
-    userId: userId instanceof ObjectId ? ObjectId(userId) : NULL_ID,
-  };
+  const filter = { _id: ObjectId(id), userId: ObjectId(userId) };
   const file = await mongoDB.files.findOne(filter);
   if (!file) {
     throw new ApiError(404, 'Not found');
@@ -197,10 +193,7 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
   const { user } = req;
   const userId = user._id;
   const { id } = req.params;
-  const filter = {
-    _id: id instanceof ObjectId ? ObjectId(id) : NULL_ID,
-    userId: userId instanceof ObjectId ? ObjectId(userId) : NULL_ID,
-  };
+  const filter = { _id: ObjectId(id), userId: ObjectId(userId) };
   const file = await mongoDB.files.findOne(filter);
   if (!file) {
     throw new ApiError(404, 'Not found');
