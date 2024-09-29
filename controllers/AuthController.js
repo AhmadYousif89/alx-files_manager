@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import { checkHashedPassword } from '../utils/encrypt';
-import asyncWrapper from '../middlewares/async_wrapper';
+import asyncWrapper from '../utils/async_wrapper';
 import { ApiError } from '../middlewares/errors';
 import redisClient from '../utils/redis';
 import mongoDB from '../utils/db';

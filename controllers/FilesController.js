@@ -6,7 +6,7 @@ import Queue from 'bull';
 import path from 'path';
 import fs from 'fs';
 
-import asyncWrapper from '../middlewares/async_wrapper';
+import asyncWrapper from '../utils/async_wrapper';
 import { ApiError } from '../middlewares/errors';
 import getUserFromHeader from '../utils/auth';
 import mongoDB from '../utils/db';

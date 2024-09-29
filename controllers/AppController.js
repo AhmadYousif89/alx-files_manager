@@ -1,6 +1,6 @@
 import mongoDB from '../utils/db';
 import redisClient from '../utils/redis';
-import asyncWrapper from '../middlewares/async_wrapper';
+import asyncWrapper from '../utils/async_wrapper';
 
 // GET /api/v1/status
 export const getStatus = (_req, res) => {

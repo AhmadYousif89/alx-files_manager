@@ -1,5 +1,5 @@
+import asyncWrapper from '../utils/async_wrapper';
 import getUserFromHeader from '../utils/auth';
-import asyncWrapper from './async_wrapper';
 import { ApiError } from './errors';
 
 export const authenticateUser = asyncWrapper(async (req, res, next) => {

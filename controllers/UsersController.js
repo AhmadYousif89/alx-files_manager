@@ -1,5 +1,5 @@
 import { hashPassword } from '../utils/encrypt';
-import asyncWrapper from '../middlewares/async_wrapper';
+import asyncWrapper from '../utils/async_wrapper';
 import { ApiError } from '../middlewares/errors';
 import mongoDB from '../utils/db';
 
