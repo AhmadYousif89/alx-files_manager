@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
+import mime from 'mime-types';
 
 import asyncWrapper from '../middlewares/async_wrapper';
 import { ApiError } from '../middlewares/errors';
@@ -204,4 +205,26 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
 
 // GET /files/:id/data
 // Return the file content based on the file id
-export const getFile = asyncWrapper(async (req, res) => {});
+export const getFile = asyncWrapper(async (req, res) => {
+  const { user } = req;
+  const userId = user._id;
+  const { id } = req.params;
+  const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
+
+  if (!file || (!file.isPublic && file.userId.toString() !== userId.toString())) {
+    throw new ApiError(404, 'Not found');
+  }
+
+  if (file.type === 'folder') {
+    throw new ApiError(400, "A folder doesn't have content");
+  }
+
+  const { localPath } = file;
+
+  if (!fs.existsSync(localPath)) {
+    throw new ApiError(404, 'Not found');
+  }
+  const mimeType = mime.lookup(file.name) || 'application/octet-stream';
+  res.setHeader('Content-Type', mimeType);
+  return res.status(200).sendFile(localPath);
+});
