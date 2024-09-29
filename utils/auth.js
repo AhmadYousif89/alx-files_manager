@@ -12,20 +12,14 @@ import mongoDB from './db';
  */
 const getUserFromHeader = async (req) => {
   const token = req.headers['x-token'];
-  if (!token) {
-    throw new ApiError(401, 'Unauthorized');
-  }
+  if (!token) return null;
 
   const key = `auth_${token}`;
   const userId = await redisClient.get(key);
-  if (!userId) {
-    throw new ApiError(401, 'Unauthorized');
-  }
+  if (!userId) throw new ApiError(401, 'Unauthorized');
 
   const user = await mongoDB.users.findOne({ _id: ObjectId(userId) });
-  if (!user) {
-    throw new ApiError(401, 'Unauthorized');
-  }
+  if (!user) throw new ApiError(401, 'Unauthorized');
 
   return user;
 };

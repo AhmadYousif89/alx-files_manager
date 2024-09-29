@@ -4,6 +4,9 @@ import { ApiError } from './errors';
 
 export const authenticateUser = asyncWrapper(async (req, res, next) => {
   const user = await getUserFromHeader(req);
+  if (!user) {
+    throw new ApiError(401, 'Unauthorized');
+  }
   req.user = user;
   next();
 });

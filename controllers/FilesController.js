@@ -8,8 +8,8 @@ import fs from 'fs';
 
 import asyncWrapper from '../middlewares/async_wrapper';
 import { ApiError } from '../middlewares/errors';
-import mongoDB from '../utils/db';
 import getUserFromHeader from '../utils/auth';
+import mongoDB from '../utils/db';
 
 const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 
@@ -219,27 +219,22 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
 // GET /files/:id/data
 // Return the file content based on the file id
 export const getFile = asyncWrapper(async (req, res) => {
-  const token = req.headers['x-token'];
-  if (!token) {
-    throw new ApiError(404, 'Not found');
-  }
-
   const user = await getUserFromHeader(req);
-  const userId = user._id;
+  const userId = user ? user._id : '';
   const { id } = req.params;
   const { size } = req.query;
   const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
+
+  if (file && file.type === 'folder') {
+    throw new ApiError(400, "A folder doesn't have content");
+  }
 
   if (!file) {
     throw new ApiError(404, 'Not found');
   }
 
-  if (!file.isPublic && (!userId || file.userId.toString() !== userId)) {
+  if (!file.isPublic && file.userId.toString() !== userId.toString()) {
     throw new ApiError(404, 'Not found');
-  }
-
-  if (file.type === 'folder') {
-    throw new ApiError(400, "A folder doesn't have content");
   }
 
   let { localPath } = file;
@@ -260,8 +255,8 @@ export const getFile = asyncWrapper(async (req, res) => {
     throw new ApiError(404, 'Not found');
   }
   const mimeType = mime.lookup(file.name) || 'application/octet-stream';
-  const fileContent = fs.readFileSync(file.localPath);
+  const fileContent = fs.readFileSync(localPath);
 
   res.setHeader('Content-Type', mimeType);
-  return res.status(200).sendFile(fileContent);
+  return res.status(200).send(fileContent);
 });
