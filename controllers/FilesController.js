@@ -1,10 +1,10 @@
 /* eslint-disable object-curly-newline */
-import { v4 as uuidv4 } from 'uuid';
-import { ObjectId } from 'mongodb';
 import { contentType } from 'mime-types';
+import { v4 as uuidv4 } from 'uuid';
+import { promises as fs } from 'fs';
+import { ObjectId } from 'mongodb';
 import Queue from 'bull';
 import path from 'path';
-import fs from 'fs';
 
 import asyncWrapper from '../middlewares/async_wrapper';
 import { ApiError } from '../middlewares/errors';
@@ -45,7 +45,7 @@ export const postUpload = asyncWrapper(async (req, res) => {
     if (!parent) {
       throw new ApiError(400, 'Parent not found');
     }
-    if (parent && parent.type !== 'folder') {
+    if (parent.type !== 'folder') {
       throw new ApiError(400, 'Parent is not a folder');
     }
   }
@@ -53,10 +53,10 @@ export const postUpload = asyncWrapper(async (req, res) => {
   // Handle folder creation in DB
   if (type === 'folder') {
     const file = await mongoDB.files.insertOne({
-      userId,
+      userId: ObjectId(userId),
       name,
       type,
-      parentId,
+      parentId: parentId === '0' ? '0' : ObjectId(parentId),
       isPublic,
     });
     return res.status(201).json({
@@ -71,22 +71,26 @@ export const postUpload = asyncWrapper(async (req, res) => {
 
   // Handle file/image creation on disk
   try {
-    if (!fs.existsSync(FOLDER_PATH)) {
-      fs.mkdirSync(FOLDER_PATH, { recursive: true });
+    const isFolderExist = await fs
+      .access(FOLDER_PATH)
+      .then(() => true)
+      .catch(() => false);
+    if (!isFolderExist) {
+      await fs.mkdir(FOLDER_PATH, { recursive: true });
     }
 
     const base64Data = Buffer.from(data, 'base64');
     const fileName = uuidv4();
-    const filePath = path.normalize(path.join(FOLDER_PATH, fileName));
+    const filePath = path.join(FOLDER_PATH, fileName);
 
-    fs.writeFileSync(filePath, base64Data);
+    await fs.writeFile(filePath, base64Data);
 
     const fileData = {
-      userId,
+      userId: ObjectId(userId),
       name,
       type,
       isPublic,
-      parentId,
+      parentId: parentId === '0' ? '0' : ObjectId(parentId),
       localPath: filePath,
     };
     const file = await mongoDB.files.insertOne(fileData);
@@ -106,6 +110,57 @@ export const postUpload = asyncWrapper(async (req, res) => {
     console.error(err);
     throw new ApiError(500, 'File creation failed');
   }
+});
+
+// GET /files/:id/data
+// Return the file content based on the file id
+export const getFile = asyncWrapper(async (req, res) => {
+  const user = await getUserFromHeader(req);
+  const userId = user ? user._id : '';
+  const { id } = req.params;
+  const { size } = req.query;
+  const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
+
+  if (!file) {
+    throw new ApiError(404, 'Not found');
+  }
+  if (file.type === 'folder') {
+    throw new ApiError(400, "A folder doesn't have content");
+  }
+
+  if (!file.isPublic && (!userId || file.userId.toString() !== userId.toString())) {
+    throw new ApiError(404, 'Not found');
+  }
+
+  let { localPath } = file;
+
+  if (size) {
+    const validSizes = ['500', '250', '100'];
+    if (validSizes.includes(size)) {
+      const resizedPath = `${localPath}_${size}`;
+      const isResizedPathExist = await fs
+        .access(resizedPath)
+        .then(() => true)
+        .catch(() => false);
+      if (isResizedPathExist) {
+        localPath = resizedPath;
+      } else {
+        throw new ApiError(404, 'Not found');
+      }
+    }
+  }
+
+  const isLocalPathExist = await fs
+    .access(localPath)
+    .then(() => true)
+    .catch(() => false);
+  if (!isLocalPathExist) {
+    throw new ApiError(404, 'Not found');
+  }
+
+  const mimeType = contentType(file.name) || 'application/octet-stream';
+  res.setHeader('Content-Type', mimeType);
+  return res.status(200).sendFile(localPath);
 });
 
 // GET /files? (optional query parameters: parentId, page, limit)
@@ -206,47 +261,4 @@ export const putUnpublish = asyncWrapper(async (req, res) => {
     isPublic: false,
     parentId,
   });
-});
-
-// GET /files/:id/data
-// Return the file content based on the file id
-export const getFile = asyncWrapper(async (req, res) => {
-  const user = await getUserFromHeader(req);
-  const userId = user ? user._id : '';
-  const { id } = req.params;
-  const { size } = req.query;
-  const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
-
-  if (!file) {
-    throw new ApiError(404, 'Not found');
-  }
-  if (file.type === 'folder') {
-    throw new ApiError(400, "A folder doesn't have content");
-  }
-
-  if (!file.isPublic && (!userId || file.userId.toString() !== userId.toString())) {
-    throw new ApiError(404, 'Not found');
-  }
-
-  let { localPath } = file;
-
-  if (size) {
-    const validSizes = ['500', '250', '100'];
-    if (validSizes.includes(size)) {
-      const resizedPath = `${localPath}_${size}`;
-      if (fs.existsSync(resizedPath)) {
-        localPath = resizedPath;
-      } else {
-        throw new ApiError(404, 'Not found');
-      }
-    }
-  }
-
-  if (!fs.existsSync(localPath)) {
-    throw new ApiError(404, 'Not found');
-  }
-
-  const mimeType = contentType(file.name) || 'application/octet-stream';
-  res.setHeader('Content-Type', mimeType);
-  return res.status(200).sendFile(localPath);
 });
