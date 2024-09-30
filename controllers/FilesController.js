@@ -115,9 +115,7 @@ export const getFile = asyncWrapper(async (req, res) => {
   const { size } = req.query;
   const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
 
-  if (!file) {
-    throw new ApiError(404, 'Not found');
-  }
+  if (!file) throw new ApiError(404, 'Not found');
 
   let fileName = file.localPath;
   if (file.isPublic) {
@@ -125,9 +123,8 @@ export const getFile = asyncWrapper(async (req, res) => {
 
     try {
       if (size) fileName = `${file.localPath}_${size}`;
-      const data = await fs.promises.readFile(fileName);
       const mimeType = contentType(file.name);
-      return res.header('Content-Type', mimeType).status(200).send(data);
+      return res.header('Content-Type', mimeType).status(200).sendFile(fileName);
     } catch (error) {
       throw new ApiError(404, 'Not found');
     }
