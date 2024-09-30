@@ -2,7 +2,7 @@
 import { contentType } from 'mime-types';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
-import Queue from 'bull';
+import Queue from 'bull/lib/queue';
 import path from 'path';
 import fs from 'fs';
 
@@ -118,7 +118,7 @@ export const getFile = asyncWrapper(async (req, res) => {
   const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
 
   if (!file) {
-    throw new ApiError(404, 'Not found');
+    throw new ApiError(404, 'File Not found');
   }
   if (file.type === 'folder') {
     throw new ApiError(400, "A folder doesn't have content");
@@ -133,7 +133,7 @@ export const getFile = asyncWrapper(async (req, res) => {
   if (size) {
     const validSizes = ['500', '250', '100'];
     if (validSizes.includes(size)) {
-      const resizedPath = `${localPath}_${size}`;
+      const resizedPath = `${localPath}_${size}.png`;
       if (fs.existsSync(resizedPath)) {
         localPath = resizedPath;
       } else {
