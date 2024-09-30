@@ -119,63 +119,39 @@ export const getFile = asyncWrapper(async (req, res) => {
     throw new ApiError(404, 'Not found');
   }
 
-  if (file.isPublic) {
-    if (file.type === 'folder') throw new ApiError(400, "A folder doesn't have content");
-
-    try {
-      let fileName = file.localPath;
-      if (size) fileName = `${file.localPath}_${size}`;
-      const data = await fs.promises.readFile(fileName);
-      const mimeType = contentType(file.name);
-      return res.header('Content-Type', mimeType).status(200).send(data);
-    } catch (error) {
-      throw new ApiError(404, 'Not found');
-    }
+  if (file.type === 'folder') {
+    throw new ApiError(400, "A folder doesn't have content");
   }
 
   const user = await getUserFromHeader(req);
-  if (!user) throw new ApiError(404, 'Not found');
 
-  const userId = user._id;
-  if (file.userId.toString() === userId.toString()) {
-    if (file.type === 'folder') throw new ApiError(400, "A folder doesn't have content");
-
-    try {
-      let fileName = file.localPath;
-      if (size) fileName = `${file.localPath}_${size}`;
-      const mimeType = contentType(file.name);
-      return res.header('Content-Type', mimeType).status(200).sendFile(fileName);
-    } catch (error) {
-      throw new ApiError(404, 'Not found');
-    }
+  if (!file.isPublic && (!user || file.userId.toString() !== user._id.toString())) {
+    throw new ApiError(404, 'Not found');
   }
-  throw new ApiError(404, 'Not found');
 
-  // let { localPath } = file;
+  try {
+    const validSizes = ['100', '250', '500'];
+    const fileName = file.localPath;
+    const mimeType = contentType(file.name) || 'application/octet-stream';
+    res.setHeader('Content-Type', mimeType);
 
-  // if (size) {
-  //   const validSizes = ['100', '250', '500'];
-  //   if (validSizes.includes(size)) {
-  //     const resizedPath = `${localPath}_${size}.png`;
-  //     if (fs.existsSync(resizedPath)) {
-  //       localPath = resizedPath;
-  //     } else {
-  //       throw new ApiError(404, 'Not found');
-  //     }
-  //   }
-  // }
+    if (size && validSizes.includes(size)) {
+      const resizedPath = `${fileName}_${size}.png`;
+      if (fs.existsSync(resizedPath)) {
+        return res.status(200).sendFile(resizedPath);
+      }
+    }
 
-  // if (
-  //   !fs.existsSync(localPath) ||
-  //   !fs.statSync(localPath).isFile() ||
-  //   !fs.statSync(localPath).size > 0
-  // ) {
-  //   throw new ApiError(404, 'Not found');
-  // }
+    if (file.isPublic) {
+      const data = await fs.promises.readFile(fileName);
+      return res.status(200).send(data);
+    }
 
-  // const mimeType = contentType(file.name) || 'application/octet-stream';
-  // res.setHeader('Content-Type', mimeType);
-  // return res.status(200).sendFile(localPath);
+    return res.status(200).sendFile(fileName);
+  } catch (error) {
+    console.error('Error serving file:', error);
+    throw new ApiError(404, 'Not found');
+  }
 });
 
 // GET /files? (optional query parameters: parentId, page, limit)
