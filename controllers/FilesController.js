@@ -115,11 +115,16 @@ export const getFile = asyncWrapper(async (req, res) => {
   const userId = user ? user._id : '';
   const { id } = req.params;
   const { size } = req.query;
-  const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
+  const filter = {
+    _id: ObjectId(id),
+    ...(userId ? { userId: ObjectId(userId) } : undefined),
+  };
+  const file = await mongoDB.files.findOne(filter);
 
   if (!file) {
-    throw new ApiError(404, 'File Not found');
+    throw new ApiError(404, 'Not found');
   }
+
   if (file.type === 'folder') {
     throw new ApiError(400, "A folder doesn't have content");
   }
@@ -131,7 +136,7 @@ export const getFile = asyncWrapper(async (req, res) => {
   let { localPath } = file;
 
   if (size) {
-    const validSizes = ['500', '250', '100'];
+    const validSizes = ['100', '250', '500'];
     if (validSizes.includes(size)) {
       const resizedPath = `${localPath}_${size}.png`;
       if (fs.existsSync(resizedPath)) {
@@ -150,7 +155,6 @@ export const getFile = asyncWrapper(async (req, res) => {
   res.setHeader('Content-Type', mimeType);
   return res.status(200).sendFile(localPath);
 });
-
 // GET /files? (optional query parameters: parentId, page, limit)
 // Return the list of files based on the query parameters
 export const getIndex = asyncWrapper(async (req, res) => {
