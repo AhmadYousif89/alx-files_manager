@@ -123,35 +123,52 @@ export const getFile = asyncWrapper(async (req, res) => {
     throw new ApiError(400, "A folder doesn't have content");
   }
 
-  const user = await getUserFromHeader(req);
+  const user = file.isPublic ? null : await getUserFromHeader(req);
 
   if (!file.isPublic && (!user || file.userId.toString() !== user._id.toString())) {
     throw new ApiError(404, 'Not found');
   }
 
   try {
-    const validSizes = ['100', '250', '500'];
-    const fileName = file.localPath;
-    const mimeType = contentType(file.name) || 'application/octet-stream';
-    res.setHeader('Content-Type', mimeType);
-
-    if (size && validSizes.includes(size)) {
-      const resizedPath = `${fileName}_${size}.png`;
-      if (fs.existsSync(resizedPath)) {
-        return res.status(200).sendFile(resizedPath);
-      }
-    }
+    const fileName = size ? `${file.localPath}_${size}` : file.localPath;
+    const mimeType = contentType(file.name);
+    res.header('Content-Type', mimeType);
 
     if (file.isPublic) {
       const data = await fs.promises.readFile(fileName);
       return res.status(200).send(data);
+    } else {
+      return res.status(200).sendFile(fileName);
     }
-
-    return res.status(200).sendFile(fileName);
   } catch (error) {
-    console.error('Error serving file:', error);
     throw new ApiError(404, 'Not found');
   }
+
+  // let { localPath } = file;
+
+  // if (size) {
+  //   const validSizes = ['100', '250', '500'];
+  //   if (validSizes.includes(size)) {
+  //     const resizedPath = `${localPath}_${size}.png`;
+  //     if (fs.existsSync(resizedPath)) {
+  //       localPath = resizedPath;
+  //     } else {
+  //       throw new ApiError(404, 'Not found');
+  //     }
+  //   }
+  // }
+
+  // if (
+  //   !fs.existsSync(localPath) ||
+  //   !fs.statSync(localPath).isFile() ||
+  //   !fs.statSync(localPath).size > 0
+  // ) {
+  //   throw new ApiError(404, 'Not found');
+  // }
+
+  // const mimeType = contentType(file.name) || 'application/octet-stream';
+  // res.setHeader('Content-Type', mimeType);
+  // return res.status(200).sendFile(localPath);
 });
 
 // GET /files? (optional query parameters: parentId, page, limit)
