@@ -115,16 +115,17 @@ export const getFile = asyncWrapper(async (req, res) => {
 
   if (!file) throw new ApiError(404, 'Not found');
 
-  if (file.type === 'folder') throw new ApiError(400, "A folder doesn't have content");
-
   if (!file.isPublic) throw new ApiError(404, 'Not found');
 
   const user = await getUserFromHeader(req);
   if (!user || file.userId.toString() !== user._id.toString()) throw new ApiError(404, 'Not found');
 
+  if (file.type === 'folder') throw new ApiError(400, "A folder doesn't have content");
+
   let fileName = file.localPath;
   try {
     if (size) fileName = `${file.localPath}_${size}`;
+    if (!fs.existsSync(fileName)) throw new ApiError(404, 'Not found');
     const data = await fs.promises.readFile(fileName);
     const mimeType = contentType(file.name);
     return res.header('Content-Type', mimeType).status(200).send(data);
