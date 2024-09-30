@@ -123,8 +123,9 @@ export const getFile = asyncWrapper(async (req, res) => {
 
     try {
       if (size) fileName = `${file.localPath}_${size}`;
+      const data = await fs.promises.readFile(fileName);
       const mimeType = contentType(file.name);
-      return res.header('Content-Type', mimeType).status(200).sendFile(fileName);
+      return res.header('Content-Type', mimeType).status(200).send(data);
     } catch (error) {
       throw new ApiError(404, 'Not found');
     }
@@ -138,8 +139,9 @@ export const getFile = asyncWrapper(async (req, res) => {
 
     try {
       if (size) fileName = `${file.localPath}_${size}`;
+      const data = await fs.promises.readFile(fileName);
       const mimeType = contentType(file.name);
-      return res.header('Content-Type', mimeType).status(200).sendFile(fileName);
+      return res.header('Content-Type', mimeType).status(200).send(data);
     } catch (error) {
       throw new ApiError(404, 'Not found');
     }
