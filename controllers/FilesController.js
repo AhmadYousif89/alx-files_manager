@@ -119,11 +119,11 @@ export const getFile = asyncWrapper(async (req, res) => {
     throw new ApiError(404, 'Not found');
   }
 
-  if (file.type === 'folder') throw new ApiError(400, "A folder doesn't have content");
-
+  let fileName = file.localPath;
   if (file.isPublic) {
+    if (file.type === 'folder') throw new ApiError(400, "A folder doesn't have content");
+
     try {
-      let fileName = file.localPath;
       if (size) fileName = `${file.localPath}_${size}`;
       const data = await fs.promises.readFile(fileName);
       const mimeType = contentType(file.name);
@@ -137,8 +137,9 @@ export const getFile = asyncWrapper(async (req, res) => {
   if (!user) throw new ApiError(404, 'Not found');
 
   if (file.userId.toString() === user._id.toString()) {
+    if (file.type === 'folder') throw new ApiError(400, "A folder doesn't have content");
+
     try {
-      let fileName = file.localPath;
       if (size) fileName = `${file.localPath}_${size}`;
       const mimeType = contentType(file.name);
       return res.header('Content-Type', mimeType).status(200).sendFile(fileName);
@@ -146,7 +147,7 @@ export const getFile = asyncWrapper(async (req, res) => {
       throw new ApiError(404, 'Not found');
     }
   }
-  throw new ApiError(404, 'Not found');
+  throw new ApiError(404, 'Not found'); // Case the file is private and the user is not the owner
 });
 
 // GET /files? (optional query parameters: parentId, page, limit)
