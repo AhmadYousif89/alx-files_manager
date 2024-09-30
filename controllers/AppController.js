@@ -4,7 +4,8 @@ import asyncWrapper from '../utils/async_wrapper';
 
 // GET /api/v1/status
 export const getStatus = (_, res) => {
-  return res.status(200).json({ redis: redisClient.isAlive(), db: mongoDB.isAlive() });
+  const status = { redis: redisClient.isAlive(), db: mongoDB.isAlive() };
+  return res.status(200).json(status);
 };
 
 // GET /api/v1/stats
