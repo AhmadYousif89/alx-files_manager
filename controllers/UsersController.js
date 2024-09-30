@@ -1,7 +1,10 @@
+import Queue from 'bull/lib/queue';
 import { hashPassword } from '../utils/encrypt';
 import asyncWrapper from '../utils/async_wrapper';
 import { ApiError } from '../middlewares/errors';
 import mongoDB from '../utils/db';
+
+const userQueue = new Queue('emailQueue');
 
 // POST /users
 export const postNew = asyncWrapper(async (req, res) => {
@@ -20,8 +23,11 @@ export const postNew = asyncWrapper(async (req, res) => {
 
   const hashedPassword = hashPassword(password);
   const user = await mongoDB.users.insertOne({ email, password: hashedPassword });
+  const userId = user.insertedId;
 
-  res.status(201).json({ id: user.insertedId, email });
+  userQueue.add('sendWelcomeEmail', { userId });
+
+  res.status(201).json({ id: userId, email });
 });
 
 // GET /users/me
