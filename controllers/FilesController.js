@@ -143,7 +143,11 @@ export const getFile = asyncWrapper(async (req, res) => {
     }
   }
 
-  if (!fs.existsSync(localPath)) {
+  if (
+    !fs.existsSync(localPath)
+    || !fs.statSync(localPath).isFile()
+    || !fs.statSync(localPath).size > 0
+  ) {
     throw new ApiError(404, 'Not found');
   }
 
@@ -151,6 +155,7 @@ export const getFile = asyncWrapper(async (req, res) => {
   res.setHeader('Content-Type', mimeType);
   return res.status(200).sendFile(localPath);
 });
+
 // GET /files? (optional query parameters: parentId, page, limit)
 // Return the list of files based on the query parameters
 export const getIndex = asyncWrapper(async (req, res) => {
