@@ -23,6 +23,7 @@
         "mongodb": "^3.5.9",
         "redis": "^2.8.0",
         "sha1": "^1.1.1",
+        "sharp": "^0.33.5",
         "uuid": "^8.2.0"
     },
     "devDependencies": {
