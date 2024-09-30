@@ -119,40 +119,34 @@ export const getFile = asyncWrapper(async (req, res) => {
     throw new ApiError(404, 'Not found');
   }
 
-  if (file.type === 'folder') {
-    throw new ApiError(400, "A folder doesn't have content");
+  if (file.type === 'folder') throw new ApiError(400, "A folder doesn't have content");
+
+  if (file.isPublic) {
+    try {
+      let fileName = file.localPath;
+      if (size) fileName = `${file.localPath}_${size}`;
+      const data = await fs.promises.readFile(fileName);
+      const mimeType = mimeType(file.name);
+      return res.header('Content-Type', mimeType).status(200).send(data);
+    } catch (error) {
+      throw new ApiError(404, 'Not found');
+    }
   }
 
   const user = await getUserFromHeader(req);
-  if (!file.isPublic && !user) throw new ApiError(404, 'Not found');
+  if (!user) throw new ApiError(404, 'Not found');
 
-  const userId = user._id;
-  if (!file.isPublic && file.userId.toString() !== userId.toString()) {
-    throw new ApiError(404, 'Not found');
-  }
-
-  let { localPath } = file;
-
-  if (size) {
-    const validSizes = ['100', '250', '500'];
-    if (validSizes.includes(size)) {
-      const resizedPath = `${localPath}_${size}.png`;
-      if (!fs.existsSync(resizedPath)) throw new ApiError(404, 'Not found');
+  if (file.userId.toString() === user._id.toString()) {
+    try {
+      let fileName = file.localPath;
+      if (size) fileName = `${file.localPath}_${size}`;
+      const mimeType = contentType(file.name);
+      return res.header('Content-Type', mimeType).status(200).sendFile(fileName);
+    } catch (error) {
+      throw new ApiError(404, 'Not found');
     }
-    localPath = resizedPath;
   }
-
-  if (!fs.existsSync(localPath)) {
-    throw new ApiError(404, 'Not found');
-  }
-
-  const mimeType = contentType(file.name) || 'application/octet-stream';
-  res.setHeader('Content-Type', mimeType);
-  if (file.isPublic) {
-    const data = await fs.promises.readFile(localPath);
-    return res.status(200).send(data);
-  }
-  return res.status(200).sendFile(localPath);
+  throw new ApiError(404, 'Not found');
 });
 
 // GET /files? (optional query parameters: parentId, page, limit)
