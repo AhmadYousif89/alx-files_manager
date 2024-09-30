@@ -111,15 +111,9 @@ export const postUpload = asyncWrapper(async (req, res) => {
 // GET /files/:id/data
 // Return the file content based on the file id
 export const getFile = asyncWrapper(async (req, res) => {
-  const user = await getUserFromHeader(req);
-  const userId = user ? user._id : '';
   const { id } = req.params;
   const { size } = req.query;
-  const filter = {
-    _id: ObjectId(id),
-    ...(userId ? { userId: ObjectId(userId) } : undefined),
-  };
-  const file = await mongoDB.files.findOne(filter);
+  const file = await mongoDB.files.findOne({ _id: ObjectId(id) });
 
   if (!file) {
     throw new ApiError(404, 'Not found');
@@ -129,6 +123,8 @@ export const getFile = asyncWrapper(async (req, res) => {
     throw new ApiError(400, "A folder doesn't have content");
   }
 
+  const user = await getUserFromHeader(req);
+  const userId = user ? user._id : '';
   if (!file.isPublic && (!userId || file.userId.toString() !== userId.toString())) {
     throw new ApiError(404, 'Not found');
   }
