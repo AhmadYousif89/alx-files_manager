@@ -3,7 +3,7 @@ import { test } from 'mocha';
 import { expect } from 'chai';
 import { hashPassword, checkHashedPassword } from '../../utils/encrypt';
 
-describe('Testing Password Encryption Module', () => {
+describe('Testing password encryption methods', () => {
   const testPassword = 'testPassword123';
   const hashedTestPassword = sha1(testPassword);
 
