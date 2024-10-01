@@ -1,7 +1,7 @@
 import express from 'express';
 import appRoutes from './routes/index';
 import { errorHandler } from './middlewares/errors';
-require('dotenv').config();
+// require('dotenv').config();
 
 const app = express();
 
