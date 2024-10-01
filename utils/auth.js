@@ -19,10 +19,7 @@ const getUserFromHeader = async (req) => {
   const userId = await redisClient.get(key);
   if (!userId) throw new ApiError(401, 'Unauthorized');
 
-  const user = await mongoDB.users.findOne(
-    { _id: ObjectId(userId) },
-    { projection: { email: 1 } },
-  );
+  const user = await mongoDB.users.findOne({ _id: ObjectId(userId) }, { projection: { email: 1 } });
   if (!user) throw new ApiError(401, 'Unauthorized');
 
   return user;
